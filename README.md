@@ -9,7 +9,7 @@ This tool contains 4 main files:
  - `decfast.py` is the chunk-optimized decoder. It takes an input image and decodes it. It uses threaded chunk decoders with a modifiable **CHUNKSIZE** variable
 
 ## How encoding works
-Input: File, Key
+```Input: File, Key```
  - Read the file as bytes into `Data`
  - Create a copy of the key and reverse it. We will call this `Rkey`
  - Create an empty set of bytes containing our output data. We will call this `Out`
@@ -21,7 +21,7 @@ Input: File, Key
  - Delete the temporary file
 
 ## How decoding works
-Input: File, Key
+```Input: File, Key```
  - Read the file as bytes into `DataRaw`
  - From the last 256 bytes of dataraw, extract the file length as `Flen`
  - Read flen number of bytes from the end file (excluding the block of 256 bytes) and save it as `Data`
@@ -31,3 +31,17 @@ Input: File, Key
  - Save `Out` to an output file to get the extracted data
 
 ## How chunking works
+This concept is inspired by Compute Shaders, and how they read and write to the same texture simultaneously
+ - Create a constant `CHUNKSIZE`. In this code, it is 16777216 bytes (16 mb)
+ - Create a buffer `Databuffer` with `n` empty bytes where `n` is the number of bytes to encode/decode. This is our data
+ - Set the number of chunks `chunkCount` to `ceil(n/CHUNKSIZE)`
+ - Create a buffer `Statbuffer` with `chunkCount` number boolean values, all `False` to begine with. This is our status
+ - Create a chunk encoder/decoder as follows:
+    - Input: `int id`
+    - Set the variable `Start` to `id*CHUNKSIZE`
+    - Set the variable `End` to the minimum of `len(Databuffer)` and `Start+CHUNKSIZE`
+    - Iterate over `[Start...End-1]` taking current index `i` and writing to `Databuffer[i]`
+    - Upon loop completion, set `Statbuffer[id]` to `True` to confirm that this chunk has been completed
+ - For every value `[0...chunkCount-1]` create a chunk encoder/decoder with `id = i`
+ - Create an empty `while` loop that runs while all values in `Statbuffer` are not `True`
+ - Upon loop completion, treat `Databuffer` like `Out` in the previous examples
